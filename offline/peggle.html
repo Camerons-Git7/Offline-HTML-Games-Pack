@@ -7,23 +7,10 @@
 <style>
   html, body { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; }
   #game { width: 100%; height: 100%; }
-  #loader {
-    position: fixed; inset: 0; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; background: #0a0a12;
-    color: #e0e0ff; font-family: system-ui, sans-serif; z-index: 10;
-  }
-  #bar { width: 280px; height: 8px; background: #222; border-radius: 4px; margin: 16px 0; overflow: hidden; }
-  #fill { height: 100%; width: 0%; background: linear-gradient(90deg, #6c5ce7, #a29bfe); transition: width 0.2s; }
-  #status { font-size: 13px; opacity: 0.7; }
   ruffle-player { width: 100%; height: 100%; display: block; }
 </style>
 </head>
 <body>
-<div id="loader">
-  <div>Loading Peggle…</div>
-  <div id="bar"><div id="fill"></div></div>
-  <div id="status">Preparing assets…</div>
-</div>
 <div id="game"></div>
 
 <script src="https://unpkg.com/@ruffle-rs/ruffle"></script>
@@ -187,32 +174,19 @@ XMLHttpRequest.prototype.send = function(...args) {
 };
 
 async function start() {
-  const status = document.getElementById('status');
-  const fill = document.getElementById('fill');
-  const loader = document.getElementById('loader');
   const game = document.getElementById('game');
 
-  const keys = Object.keys(ASSETS);
-  status.textContent = `Decoding ${keys.length} assets…`;
-  // pre-decode a few critical ones
-  let done = 0;
-  for (const k of keys) {
-    getBlob(k);
-    done++;
-    fill.style.width = Math.round((done / keys.length) * 80) + '%';
-    if (done % 5 === 0) await new Promise(r => setTimeout(r, 0));
-  }
-  fill.style.width = '90%';
-  status.textContent = 'Starting Ruffle…';
+  // Pre-decode assets in background (no UI)
+  for (const k of Object.keys(ASSETS)) getBlob(k);
 
   // Wait for Ruffle
   let tries = 0;
-  while (!window.RufflePlayer && tries < 100) {
-    await new Promise(r => setTimeout(r, 50));
+  while (!window.RufflePlayer && tries < 150) {
+    await new Promise(r => setTimeout(r, 40));
     tries++;
   }
   if (!window.RufflePlayer) {
-    status.textContent = 'Failed to load Ruffle. Check network for CDN.';
+    game.textContent = 'Failed to load Ruffle.';
     return;
   }
 
@@ -225,9 +199,6 @@ async function start() {
   const swfBlob = getBlob('peggle.swf');
   const swfBytes = await swfBlob.arrayBuffer();
 
-  fill.style.width = '100%';
-  status.textContent = 'Loading SWF…';
-
   try {
     await player.load({
       data: swfBytes,
@@ -236,13 +207,11 @@ async function start() {
       autoplay: 'on',
       letterbox: 'on',
       scale: 'showAll',
-      // help relative loads resolve against a fake base
       base: 'https://localhost/peggle/'
     });
-    loader.style.display = 'none';
   } catch (err) {
-    status.textContent = 'Error loading SWF: ' + err.message;
     console.error(err);
+    game.textContent = 'Error loading SWF: ' + err.message;
   }
 }
 
