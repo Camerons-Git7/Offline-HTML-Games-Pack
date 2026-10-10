@@ -1,0 +1,37 @@
+name: Set Quality to Low
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  replace-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Replace quality high with low
+        run: |
+          find . -type f \( -name "*.html" -o -name "*.js" -o -name "*.css" -o -name "*.json" -o -name "*.txt" -o -name "*.swf" -o -name "*.xml" \) \
+            -not -path "./.git/*" \
+            -exec sed -i \
+              -e 's/quality[[:space:]]*:[[:space:]]*["'\'']\?high["'\'']\?/quality: low/gi' \
+              -e 's/quality[[:space:]]*=[[:space:]]*["'\'']\?high["'\'']\?/quality="low"/gi' \
+              -e 's/"quality"[[:space:]]*:[[:space:]]*"high"/"quality": "low"/gi' \
+              -e "s/'quality'[[:space:]]*:[[:space:]]*'high'/'quality': 'low'/gi" \
+              -e 's/value=["'\'']high["'\'']/value="low"/gi' \
+              {} +
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --staged --quiet; then
+            echo "No changes"
+          else
+            git commit -m "Set all quality settings to low"
+            git push
+          fi
